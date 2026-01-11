@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { getCollection, addDocument } from '@/lib/firebase/firestore'
 import { uploadFile } from '@/lib/firebase/storage'
 import type { Product } from '@/lib/types/user'
-import { Plus, Package, AlertCircle, X } from 'lucide-react'
+import { Plus, Package, AlertCircle, X, Share2, Check } from 'lucide-react'
 import { PRODUCT_CATEGORIES } from '@/lib/constants'
 import { where } from 'firebase/firestore'
 
@@ -18,6 +18,7 @@ export default function ProductsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [copiedProductId, setCopiedProductId] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     nameEn: '',
@@ -74,6 +75,26 @@ export default function ProductsPage() {
   const removeImage = (index: number) => {
     setImageFiles((prev) => prev.filter((_, i) => i !== index))
     setImagePreviews((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleShareStore = async (productId: string | null = null) => {
+    if (!user?.business) return
+    let storeUrl = '';
+    if (productId) {
+      storeUrl = `${window.location.origin}/store/${user.business.slug}/${productId}`
+    } else {
+      storeUrl = `${window.location.origin}/store/${user.business.slug}`
+    }
+
+    try {
+      await navigator.clipboard.writeText(storeUrl)
+      if (productId) {
+        setCopiedProductId(productId)
+        setTimeout(() => setCopiedProductId(null), 2000)
+      }
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -168,13 +189,22 @@ export default function ProductsPage() {
             {products.length} product{products.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add Product
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => handleShareStore()}
+            className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+          >
+            <Share2 className="w-4 h-4" />
+            Share Store Link
+          </button>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Add Product
+          </button>
+        </div>
       </div>
 
       {/* Products Grid */}
@@ -238,7 +268,7 @@ export default function ProductsPage() {
                 <p className="text-2xl font-bold text-blue-600 mb-2">
                   ₹{product.price}
                 </p>
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-sm mb-3">
                   <span className="text-gray-600">
                     Stock: {product.stock}
                   </span>
@@ -246,6 +276,23 @@ export default function ProductsPage() {
                     {product.category}
                   </span>
                 </div>
+                {/* Share Store Link Button */}
+                <button
+                  onClick={() => handleShareStore(product.id)}
+                  className="w-full flex items-center justify-center gap-2 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                >
+                  {copiedProductId === product.id ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="w-4 h-4" />
+                      Share Product Link
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           ))}
