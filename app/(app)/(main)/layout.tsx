@@ -1,6 +1,8 @@
 'use client'
 
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useAuthStore } from '@/lib/stores/authStore'
+import { signOut } from '@/lib/firebase/auth'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
@@ -11,7 +13,18 @@ export default function MainLayout({
   children: React.ReactNode
 }) {
   const { isAuthenticated, isLoading, user } = useAuth()
+  const { clearAuth } = useAuthStore()
   const router = useRouter()
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      clearAuth()
+      router.push('/login')
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
+  }
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -64,10 +77,7 @@ export default function MainLayout({
                 Settings
               </a>
               <button
-                onClick={() => {
-                  // Sign out logic here
-                  router.push('/login')
-                }}
+                onClick={handleSignOut}
                 className="text-gray-600 hover:text-gray-900 font-medium"
               >
                 Sign Out
