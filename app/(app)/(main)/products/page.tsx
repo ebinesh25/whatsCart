@@ -7,6 +7,7 @@ import { uploadFile } from '@/lib/firebase/storage'
 import type { Product } from '@/lib/types/user'
 import { Plus, Package, AlertCircle, X } from 'lucide-react'
 import { PRODUCT_CATEGORIES } from '@/lib/constants'
+import { where } from 'firebase/firestore'
 
 export default function ProductsPage() {
   const { user } = useAuth()
@@ -35,8 +36,10 @@ export default function ProductsPage() {
     if (!user?.business) return
 
     try {
-      const data = await getCollection<Product>('products', [])
-      setProducts(data.filter((p) => p.businessId === user.business!.id))
+      const data = await getCollection<Product>('products', [
+        where('businessId', '==', user.business.id)
+      ])
+      setProducts(data)
     } catch (error) {
       console.error('Error loading products:', error)
     } finally {
