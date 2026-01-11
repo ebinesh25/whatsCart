@@ -4,16 +4,19 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { signInWithGoogle } from '@/lib/firebase/auth'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useAuthStore } from '@/lib/stores/authStore'
 import { Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading, user } = useAuth()
+  const { setUser } = useAuthStore()
 
   useEffect(() => {
     // Redirect if already authenticated
-    if (isAuthenticated) {
-      if (user?.business) {
+    if (isAuthenticated && user) {
+      console.log('User authenticated, redirecting...', { user: user.email, hasBusiness: !!user.business })
+      if (user.business) {
         router.push('/products')
       } else {
         router.push('/setup')
@@ -23,8 +26,24 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     try {
-      await signInWithGoogle()
-      // Redirect will happen via useEffect when auth state updates
+      console.log('Starting Google sign in...')
+      const userData = await signInWithGoogle()
+      console.log('Sign in successful', userData)
+
+      if (userData) {
+        // Manually set the user data (with business) in the store
+        console.log('Setting user data in store', userData)
+        setUser(userData)
+
+        // Redirect after a short delay to ensure state is updated
+        setTimeout(() => {
+          if (userData.business) {
+            router.push('/products')
+          } else {
+            router.push('/setup')
+          }
+        }, 100)
+      }
     } catch (error) {
       console.error('Error signing in:', error)
     }

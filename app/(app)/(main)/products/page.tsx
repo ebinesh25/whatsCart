@@ -1,17 +1,31 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, FormEvent } from 'react'
 import { useAuth } from '@/lib/hooks/useAuth'
-import { getCollection } from '@/lib/firebase/firestore'
+import { getCollection, addDocument } from '@/lib/firebase/firestore'
+import { uploadFile } from '@/lib/firebase/storage'
 import type { Product } from '@/lib/types/user'
-import { Plus, Package, AlertCircle } from 'lucide-react'
+import { Plus, Package, AlertCircle, X } from 'lucide-react'
 import { PRODUCT_CATEGORIES } from '@/lib/constants'
 
 export default function ProductsPage() {
   const { user } = useAuth()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+
+  const [formData, setFormData] = useState({
+    nameEn: '',
+    nameTa: '',
+    descriptionEn: '',
+    price: '',
+    stock: '',
+    category: '',
+  })
 
   useEffect(() => {
     loadProducts()
@@ -27,6 +41,117 @@ export default function ProductsPage() {
       console.error('Error loading products:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    // Limit to 5 images
+    const remainingSlots = 5 - imageFiles.length
+    const filesToAdd = files.slice(0, remainingSlots)
+
+    if (filesToAdd.length < files.length) {
+      alert('You can only upload up to 5 images')
+    }
+
+    setImageFiles((prev) => [...prev, ...filesToAdd])
+
+    // Create previews
+    filesToAdd.forEach((file) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreviews((prev) => [...prev, reader.result as string])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const removeImage = (index: number) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index))
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    console.log("User Details", user)
+    if (!user?.business) return
+    
+    console.log("Setting Submitting")
+    setSubmitting(true)
+    try {
+      // Upload images
+      console.log("Uploading Images")
+      const imageUrls: string[] = []
+      for (const file of imageFiles) {
+        const url = await uploadFile(
+          `products/${user.business.id}/${Date.now()}-${file.name}`,
+          file,
+          { contentType: file.type }
+        )
+        imageUrls.push(url)
+      }
+      console.log("Images. ", imageUrls);
+
+      // Create product
+      console.log("FormData", formData)
+      await addDocument('products', {
+        businessId: user.business.id,
+        name: {
+          en: formData.nameEn,
+          ta: formData.nameTa,
+        },
+        description: {
+          en: formData.descriptionEn,
+        },
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock),
+        category: formData.category,
+        images: imageUrls,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isActive: true,
+      })
+
+      console.log("Products ", {
+        businessId: user.business.id,
+        name: {
+          en: formData.nameEn,
+          ta: formData.nameTa,
+        },
+        description: {
+          en: formData.descriptionEn,
+        },
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock),
+        category: formData.category,
+        images: imageUrls,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isActive: true,
+      })
+
+      // Reset form
+      setFormData({
+        nameEn: '',
+        nameTa: '',
+        descriptionEn: '',
+        price: '',
+        stock: '',
+        category: '',
+      })
+      setImageFiles([])
+      setImagePreviews([])
+      setShowAddForm(false)
+
+      // Reload products
+      await loadProducts()
+    } catch (error) {
+      console.error('Error adding product:', error)
+      alert('Failed to add product. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -132,7 +257,7 @@ export default function ProductsPage() {
               <h2 className="text-xl font-bold text-gray-900">Add New Product</h2>
             </div>
 
-            <form className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
               {/* Product Name - English */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -140,6 +265,8 @@ export default function ProductsPage() {
                 </label>
                 <input
                   type="text"
+                  value={formData.nameEn}
+                  onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })}
                   placeholder="e.g., Cotton Kurti"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
@@ -153,6 +280,8 @@ export default function ProductsPage() {
                 </label>
                 <input
                   type="text"
+                  value={formData.nameTa}
+                  onChange={(e) => setFormData({ ...formData, nameTa: e.target.value })}
                   placeholder="e.g., பருத்தி குர்த்தி"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
@@ -164,6 +293,8 @@ export default function ProductsPage() {
                   Description (English)
                 </label>
                 <textarea
+                  value={formData.descriptionEn}
+                  onChange={(e) => setFormData({ ...formData, descriptionEn: e.target.value })}
                   placeholder="Describe your product..."
                   rows={3}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -178,6 +309,8 @@ export default function ProductsPage() {
                   </label>
                   <input
                     type="number"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     placeholder="599"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
@@ -189,6 +322,8 @@ export default function ProductsPage() {
                   </label>
                   <input
                     type="number"
+                    value={formData.stock}
+                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                     placeholder="10"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
@@ -202,6 +337,8 @@ export default function ProductsPage() {
                   Category *
                 </label>
                 <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 >
@@ -219,34 +356,87 @@ export default function ProductsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Product Images
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+
+                {/* Image Previews */}
+                {imagePreviews.length > 0 && (
+                  <div className="flex flex-wrap gap-3 mb-3">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div
+                  onClick={() => imagePreviews.length < 5 && fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    imagePreviews.length >= 5
+                      ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'border-gray-300 cursor-pointer hover:border-blue-500'
+                  }`}
+                >
+                  <Package className={`w-12 h-12 mx-auto mb-4 ${imagePreviews.length >= 5 ? 'text-gray-300' : 'text-gray-300'}`} />
                   <p className="text-gray-600 mb-2">
-                    Click to upload or drag and drop
+                    {imagePreviews.length >= 5
+                      ? 'Maximum 5 images reached'
+                      : 'Click to upload or drag and drop'}
                   </p>
                   <p className="text-sm text-gray-500">
-                    PNG, JPG up to 5MB (max 5 images)
+                    {imagePreviews.length}/5 images uploaded
                   </p>
-                  <input type="file" accept="image/*" multiple className="hidden" />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    disabled={imagePreviews.length >= 5}
+                    className="hidden"
+                  />
                 </div>
               </div>
-            </form>
-
             <div className="p-6 border-t flex gap-3">
               <button
                 type="button"
-                onClick={() => setShowAddForm(false)}
+                onClick={() => {
+                  setShowAddForm(false)
+                  setFormData({
+                    nameEn: '',
+                    nameTa: '',
+                    descriptionEn: '',
+                    price: '',
+                    stock: '',
+                    category: '',
+                  })
+                  setImageFiles([])
+                  setImagePreviews([])
+                }}
                 className="flex-1 border border-gray-300 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                disabled={submitting}
+                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
-                Add Product
+                {submitting ? 'Adding...' : 'Add Product'}
               </button>
             </div>
+            </form>
+
           </div>
         </div>
       )}

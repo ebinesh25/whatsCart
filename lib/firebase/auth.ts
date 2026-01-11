@@ -6,9 +6,9 @@ import {
   type User as FirebaseUser,
   onAuthStateChanged,
 } from 'firebase/auth'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, getDocs, setDoc, serverTimestamp, collection, query, where } from 'firebase/firestore'
 import { auth, db } from './config'
-import type { User } from '@/lib/types/user'
+import type { User, Business } from '@/lib/types/user'
 
 const googleProvider = new GoogleAuthProvider()
 
@@ -59,7 +59,25 @@ export async function signInWithGoogle(): Promise<User | null> {
       { merge: true }
     )
 
-    return userDoc.data() as User
+    const userData = userDoc.data() as User
+
+    // Fetch business for this user
+    try {
+      const businessQuery = query(collection(db, 'businesses'), where('userId', '==', firebaseUser.uid))
+      const businessSnapshot = await getDocs(businessQuery)
+
+      if (!businessSnapshot.empty) {
+        const businessDoc = businessSnapshot.docs[0]
+        const businessData = { ...businessDoc.data(), id: businessDoc.id } as Business
+        console.log('Business found during sign in', businessData)
+        // Attach business to user
+        return { ...userData, business: businessData }
+      }
+    } catch (error) {
+      console.error('Error fetching business during sign in:', error)
+    }
+
+    return userData
   } catch (error) {
     console.error('Error signing in with Google:', error)
     throw error

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { addDocument } from '@/lib/firebase/firestore'
@@ -12,6 +12,7 @@ import type { Business, BusinessCategory } from '@/lib/types/user'
 export default function SetupPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -100,7 +101,7 @@ export default function SetupPage() {
   const isFormValid =
     formData.name &&
     formData.slug &&
-    formData.whatsappNumber &&
+    // formData.whatsappNumber &&
     formData.category
 
   return (
@@ -218,17 +219,22 @@ export default function SetupPage() {
                   </button>
                 </div>
               ) : (
-                <label className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 transition-colors"
+                >
                   <Upload className="w-6 h-6 text-gray-400" />
                   <span className="text-xs text-gray-500 mt-1">Upload</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                  />
-                </label>
+                </button>
               )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                className="hidden"
+              />
               <div className="flex-1">
                 <p className="text-sm text-gray-600">Upload your business logo</p>
                 <p className="text-xs text-gray-500 mt-1">
@@ -247,14 +253,15 @@ export default function SetupPage() {
                 <button
                   key={color.value}
                   onClick={() => setFormData((prev) => ({ ...prev, color: color.value }))}
-                  className={`w-12 h-12 rounded-lg ${color.bg} transition-all ${
+                  className={`relative w-12 h-12 rounded-lg transition-all ${
                     formData.color === color.value
-                      ? 'ring-4 ring-offset-2 ring-gray-400'
-                      : 'ring-2 ring-transparent hover:ring-gray-300'
+                      ? 'ring-4 ring-offset-2 ring-blue-600 scale-110'
+                      : 'ring-2 ring-transparent hover:ring-gray-300 hover:scale-105'
                   }`}
+                  style={{ backgroundColor: color.value }}
                 >
                   {formData.color === color.value && (
-                    <Check className="w-6 h-6 text-white mx-auto" />
+                    <Check className="w-6 h-6 text-white mx-auto" strokeWidth={3} />
                   )}
                 </button>
               ))}
