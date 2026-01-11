@@ -23,9 +23,6 @@ export async function signInWithGoogle(): Promise<User | null> {
     // Check if user document exists, if not create it
     const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))
 
-    // Check if the user has business registered
-    const businessDoc = await getDoc(doc(db, 'business', firebaseUser.uid))
-
     if (!userDoc.exists()) {
       // Create new user document
       const newUser: User = {
@@ -56,7 +53,6 @@ export async function signInWithGoogle(): Promise<User | null> {
     await setDoc(
       doc(db, 'users', firebaseUser.uid),
       {
-        business: businessDoc,
         lastLoginAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
