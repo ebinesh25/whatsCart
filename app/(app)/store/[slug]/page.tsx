@@ -10,18 +10,25 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import type { Business, Product } from '@/lib/types/user'
 import { ShoppingBag, X, Plus, Minus, MessageCircle } from 'lucide-react'
 import { LOW_STOCK_THRESHOLD } from '@/lib/constants'
+import { BusinessCategory } from '@/lib/types/user'
 
 export default function BuyerStorePage() {
   const params = useParams()
   const slug = params.slug as string
 
   const { user } = useAuth()
-  const { items, customerPhone, totalAmount, addItem, removeItem, updateQuantity, setCustomerPhone, clearCart } = useCart()
+  const { items, totalAmount, addItem, removeItem, updateQuantity, clearCart } = useCart()
 
   const [business, setBusiness] = useState<Business | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [cartOpen, setCartOpen] = useState(false)
+
+  // Helper to get quantity of a product in cart
+  const getProductQuantity = (productId: string): number => {
+    const item = items.find((i) => i.product.id === productId)
+    return item?.quantity || 0
+  }
 
   useEffect(() => {
     if (!slug) return
@@ -63,8 +70,7 @@ export default function BuyerStorePage() {
     const message = formatWhatsAppMessage(
       business.name,
       items,
-      totalAmount,
-      customerPhone
+      totalAmount
     )
 
     const whatsappURL = generateWhatsAppURL(business.whatsappNumber, message)
@@ -146,14 +152,117 @@ export default function BuyerStorePage() {
       </header>
 
       {/* Products List */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8">
         {products.length === 0 ? (
           <div className="text-center py-12">
             <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No products yet</h3>
             <p className="text-gray-600">This store hasn&apos;t added any products yet.</p>
           </div>
+        ) : business.category === BusinessCategory.GARMENTS ? (
+          /* Clothing Store Layout - 2 Column Grid */
+          <div className="grid grid-cols-2 gap-4">
+            {products.map((product) => (
+              <Link
+                key={product.id}
+                href={`/store/${slug}/${product.id}`}
+                className="block bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+              >
+                {/* Large Product Image */}
+                <div className="aspect-[3/4] bg-gray-100 relative">
+                  {product.images[0] ? (
+                    <img
+                      src={product.images[0]}
+                      alt={product.name.en}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ShoppingBag className="w-12 h-12 text-gray-300" />
+                    </div>
+                  )}
+                  {/* Low Stock Badge */}
+                  {product.stock > 0 && product.stock < LOW_STOCK_THRESHOLD && (
+                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                      Only {product.stock} left
+                    </div>
+                  )}
+                  {/* Out of Stock Overlay */}
+                  {product.stock === 0 && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <span className="text-white font-medium">Out of Stock</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Product Info - Bottom */}
+                <div className="p-3">
+                  <h3 className="font-semibold text-gray-900 text-sm mb-1 line-clamp-1">
+                    {product.name.en}
+                  </h3>
+                  <p className="text-lg font-bold mb-2" style={{ color: business.color }}>
+                    ₹{product.price}
+                  </p>
+                  {getProductQuantity(product.id) > 0 ? (
+                    <div className="flex items-center gap-2">
+                      {/* Remove Button */}
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault()
+                          removeItem(product.id)
+                        }}
+                        className="px-3 py-2 rounded-lg font-medium transition-colors text-sm bg-red-500 text-white hover:bg-red-600"
+                      >
+                        Remove
+                      </button>
+                      {/* Quantity Controls */}
+                      <div className="flex items-center gap-1 flex-1">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            updateQuantity(product.id, getProductQuantity(product.id) - 1)
+                          }}
+                          className="w-8 h-8 rounded-lg border flex items-center justify-center hover:bg-gray-100"
+                          style={{ borderColor: business.color }}
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="flex-1 text-center font-medium text-sm">{getProductQuantity(product.id)}</span>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            updateQuantity(product.id, getProductQuantity(product.id) + 1)
+                          }}
+                          disabled={getProductQuantity(product.id) >= product.stock}
+                          className="w-8 h-8 rounded-lg border flex items-center justify-center hover:bg-gray-100 disabled:opacity-50"
+                          style={{ borderColor: business.color }}
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        addItem(product)
+                      }}
+                      disabled={product.stock === 0}
+                      className="w-full px-4 py-2 rounded-lg font-medium transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm"
+                      style={{
+                        backgroundColor: product.stock > 0 ? business.color : '#d1d5db',
+                        color: 'white',
+                      }}
+                    >
+                      {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+                    </button>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
         ) : (
+          /* Other Store Layout - List View */
           <div className="space-y-4">
             {products.map((product) => (
               <Link
@@ -205,20 +314,60 @@ export default function BuyerStorePage() {
                       </p>
                     </div>
                     <div className="mt-3">
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault()
-                          addItem(product)
-                        }}
-                        disabled={product.stock === 0}
-                        className="px-6 py-2 rounded-lg font-medium transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                        style={{
-                          backgroundColor: product.stock > 0 ? business.color : '#d1d5db',
-                          color: 'white',
-                        }}
-                      >
-                        {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
-                      </button>
+                      {getProductQuantity(product.id) > 0 ? (
+                        <div className="flex items-center gap-3">
+                          {/* Remove Button */}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              removeItem(product.id)
+                            }}
+                            className="px-4 py-2 rounded-lg font-medium transition-colors text-sm bg-red-500 text-white hover:bg-red-600"
+                          >
+                            Remove
+                          </button>
+                          {/* Quantity Controls */}
+                          <div className="flex items-center gap-2 flex-1">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault()
+                                updateQuantity(product.id, getProductQuantity(product.id) - 1)
+                              }}
+                              className="w-9 h-9 rounded-lg border flex items-center justify-center hover:bg-gray-100"
+                              style={{ borderColor: business.color }}
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="w-8 text-center font-medium">{getProductQuantity(product.id)}</span>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault()
+                                updateQuantity(product.id, getProductQuantity(product.id) + 1)
+                              }}
+                              disabled={getProductQuantity(product.id) >= product.stock}
+                              className="w-9 h-9 rounded-lg border flex items-center justify-center hover:bg-gray-100 disabled:opacity-50"
+                              style={{ borderColor: business.color }}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            addItem(product)
+                          }}
+                          disabled={product.stock === 0}
+                          className="px-6 py-2 rounded-lg font-medium transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                          style={{
+                            backgroundColor: product.stock > 0 ? business.color : '#d1d5db',
+                            color: 'white',
+                          }}
+                        >
+                          {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -319,25 +468,10 @@ export default function BuyerStorePage() {
                   <span>₹{totalAmount}</span>
                 </div>
 
-                {/* Customer Phone */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Your Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="+91 98765 43210"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
                 {/* Send to WhatsApp Button */}
                 <button
                   onClick={handleSendToWhatsApp}
-                  disabled={!customerPhone}
-                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
                 >
                   <MessageCircle className="w-5 h-5" />
                   Send Order via WhatsApp
