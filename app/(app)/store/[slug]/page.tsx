@@ -7,8 +7,9 @@ import { getCollection } from '@/lib/firebase/firestore'
 import { useCart } from '@/lib/hooks/useCart'
 import { formatWhatsAppMessage, generateWhatsAppURL } from '@/lib/utils/whatsapp'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useShareCart } from '@/lib/hooks/useShareCart'
 import type { Business, Product } from '@/lib/types/user'
-import { ShoppingBag, X, Plus, Minus, MessageCircle } from 'lucide-react'
+import { ShoppingBag, X, Plus, Minus, MessageCircle, Share2, Check } from 'lucide-react'
 import { LOW_STOCK_THRESHOLD } from '@/lib/constants'
 import { BusinessCategory } from '@/lib/types/user'
 
@@ -23,6 +24,9 @@ export default function BuyerStorePage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [cartOpen, setCartOpen] = useState(false)
+
+  const { copyCartLink, isSharing, sharedCartUrl, error: shareError } = useShareCart(business)
+  const [copySuccess, setCopySuccess] = useState(false)
 
   // Helper to get quantity of a product in cart
   const getProductQuantity = (productId: string): number => {
@@ -78,6 +82,14 @@ export default function BuyerStorePage() {
 
     clearCart()
     setCartOpen(false)
+  }
+
+  const handleCopyCartLink = async () => {
+    const success = await copyCartLink()
+    if (success) {
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000)
+    }
   }
 
   if (loading) {
@@ -467,6 +479,25 @@ export default function BuyerStorePage() {
                   <span>Total</span>
                   <span>₹{totalAmount}</span>
                 </div>
+
+                {/* Share Cart Link Button */}
+                <button
+                  onClick={handleCopyCartLink}
+                  disabled={isSharing}
+                  className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  {copySuccess ? (
+                    <>
+                      <Check className="w-5 h-5" />
+                      Link Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="w-5 h-5" />
+                      {isSharing ? 'Generating...' : 'Share Cart Link'}
+                    </>
+                  )}
+                </button>
 
                 {/* Send to WhatsApp Button */}
                 <button
