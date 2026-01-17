@@ -347,6 +347,19 @@ export default function BuyerStorePage() {
           </div>
         </>
       )}
+
+      {/* Floating Cart Button */}
+      <button
+        onClick={() => setCartOpen(true)}
+        className="fixed bottom-6 right-6 z-30 flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+      >
+        <ShoppingBag className="w-5 h-5" />
+        {items.length > 0 && (
+          <span className="bg-white text-blue-600 text-xs font-bold px-2 py-1 rounded-full">
+            {items.reduce((sum, item) => sum + item.quantity, 0)}
+          </span>
+        )}
+      </button>
     </div>
   )
 }
