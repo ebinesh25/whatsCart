@@ -15,6 +15,7 @@ import {
   CollectionReference,
 } from 'firebase/firestore'
 import { db } from './config'
+import type { SharedCart } from '@/lib/types/user'
 
 /**
  * Get a document by ID
@@ -27,7 +28,7 @@ export async function getDocument<T extends DocumentData>(
   const docSnap = await getDoc(docRef)
 
   if (docSnap.exists()) {
-    return docSnap.data() as T
+    return { ...docSnap.data(), id: docSnap.id } as unknown as T
   }
   return null
 }
@@ -107,4 +108,61 @@ export function getCollectionRef<T extends DocumentData>(collectionName: string)
  */
 export function getDocumentRef(collectionName: string, id: string) {
   return doc(db, collectionName, id)
+}
+
+/**
+ * Create a shared cart and return the cartId
+ */
+export async function createSharedCart(data: {
+  storeId: string
+  storeName: string
+  storeSlug: string
+  storeColor: string
+  items: {
+    productId: string
+    productName: string
+    quantity: number
+    price: number
+    productImage?: string
+  }[]
+  totalAmount: number
+  creatorUserId?: string
+}): Promise<string> {
+  // First, check if there's a Firebase Functions endpoint for this
+  // For now, we'll create directly from frontend (in production, use callable function)
+
+  const cartData = {
+    ...data,
+    cartId: generateShortCartId(), // Generate client-side for now
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+  }
+
+  const docId = await addDocument('carts', cartData)
+  return cartData.cartId
+}
+
+/**
+ * Generate a short cart ID (client-side)
+ */
+function generateShortCartId(length: number = 9): string {
+  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let result = ''
+
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+
+  return result
+}
+
+/**
+ * Get a shared cart by cartId
+ */
+export async function getSharedCart(cartId: string): Promise<SharedCart | null> {
+  const carts = await getCollection<SharedCart>('carts', [
+    ['cartId', '==', cartId],
+  ])
+
+  return carts.length > 0 ? carts[0] : null
 }

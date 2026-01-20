@@ -19,9 +19,11 @@ export function useAuth() {
       setLoading(true)
 
       if (firebaseUser) {
-        // Check if we have user data in the store (from persist)
-        if (user) {
-          console.log('Using persisted user data from store', user)
+        // Get current user state from store (not from closure) to check for persisted data
+        const currentUser = useAuthStore.getState().user
+
+        if (currentUser) {
+          console.log('Using persisted user data from store', currentUser)
         } else {
           // No persisted data - create basic user data from Firebase Auth
           // This happens on first sign in before signInWithGoogle completes
@@ -57,7 +59,7 @@ export function useAuth() {
     })
 
     return () => unsubscribe()
-  }, [isInitialized, user, setUser, setLoading, setInitialized])
+  }, [isInitialized, setUser, setLoading, setInitialized])
 
   return {
     user,

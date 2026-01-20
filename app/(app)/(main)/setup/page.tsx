@@ -3,7 +3,8 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
-import { addDocument } from '@/lib/firebase/firestore'
+import { useAuthStore } from '@/lib/stores/authStore'
+import { addDocument, getDocument } from '@/lib/firebase/firestore'
 import { uploadFile } from '@/lib/firebase/storage'
 import { BUSINESS_CATEGORIES, DEFAULT_COLORS } from '@/lib/constants'
 import { Loader2, Upload, Check } from 'lucide-react'
@@ -12,6 +13,7 @@ import type { Business, BusinessCategory } from '@/lib/types/user'
 export default function SetupPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { setUser } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [step, setStep] = useState(1)
@@ -87,8 +89,15 @@ export default function SetupPage() {
 
       const businessId = await addDocument<Omit<Business, 'id'>>('businesses', business)
 
-      // Update user document with business reference
-      // TODO: Implement Firebase Function call
+      // Fetch the newly created business with its ID
+      const createdBusiness = await getDocument<Business>('businesses', businessId)
+
+      if (createdBusiness) {
+        // Attach business to user and update the auth store
+        const updatedUser = { ...user, business: createdBusiness }
+        console.log('Business created successfully, attaching to user', createdBusiness)
+        setUser(updatedUser)
+      }
 
       router.push('/products')
     } catch (error) {
