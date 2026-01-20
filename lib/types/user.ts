@@ -130,3 +130,28 @@ export interface CartItem {
   product: Product
   quantity: number
 }
+
+/**
+ * Shared Cart Types (for shareable cart links)
+ */
+export interface SharedCartItem {
+  productId: string
+  productName: string
+  quantity: number
+  price: number
+  productImage?: string
+}
+
+export interface SharedCart {
+  id: string
+  cartId: string
+  storeId: string
+  storeName: string
+  storeSlug: string
+  storeColor: string
+  creatorUserId?: string
+  items: SharedCartItem[]
+  totalAmount: number
+  createdAt: string
+  expiresAt: string
+}
