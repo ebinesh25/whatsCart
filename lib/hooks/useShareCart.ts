@@ -23,7 +23,21 @@ export function useShareCart(business: Business | null) {
     setError(null)
 
     try {
-      const cartData: Record<string, any> = {
+      const cartData: {
+        storeId: string
+        storeName: string
+        storeSlug: string
+        storeColor: string
+        items: {
+          productId: string
+          productName: string
+          quantity: number
+          price: number
+          productImage?: string
+        }[]
+        totalAmount: number
+        creatorUserId?: string
+      } = {
         storeId: business.id,
         storeName: business.name,
         storeSlug: business.slug,

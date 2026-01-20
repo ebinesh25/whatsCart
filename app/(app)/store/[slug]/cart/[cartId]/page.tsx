@@ -205,7 +205,7 @@ export default function SharedCartPage() {
           <div className="text-center py-12">
             <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Cart is Empty</h3>
-            <p className="text-gray-600">This shared cart doesn't contain any items.</p>
+            <p className="text-gray-600">This shared cart doesn&apos;t contain any items.</p>
           </div>
         ) : (
           <div className="space-y-4">
